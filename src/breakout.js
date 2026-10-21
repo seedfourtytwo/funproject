@@ -1,5 +1,5 @@
 import {
-  FIELD_X, FIELD_W, GRID_TOP, VIEW_H,
+  FIELD_X, FIELD_W, GRID_TOP, VIEW_H, CELL, COLS, ROWS,
   PADDLE_W, PADDLE_H, PADDLE_Y, BALL_R, BALL_SPEED, LAUNCH_DELAY, MAX_BOUNCE_ANGLE,
 } from './config.js';
 
@@ -55,10 +55,43 @@ function resetBall(state) {
   b.y = state.paddle.y - b.r;
 }
 
-// Fait avancer la balle de dt secondes. Renvoie la liste de ce qui s'est
-// passé (rebonds, balle perdue) pour que le reste du jeu réagisse :
-// son, vibration, vies...
-export function stepBall(state, dt) {
+// La case pleine de la grille que la balle touche, la plus proche de son
+// centre (une seule à la fois, même pile sur une jointure). Sinon null.
+function touchedCell(b, grid) {
+  if (!grid) return null;
+  const c0 = Math.max(0, Math.floor((b.x - b.r - FIELD_X) / CELL));
+  const c1 = Math.min(COLS - 1, Math.floor((b.x + b.r - FIELD_X) / CELL));
+  const r0 = Math.max(0, Math.floor((b.y - b.r - GRID_TOP) / CELL));
+  const r1 = Math.min(ROWS - 1, Math.floor((b.y + b.r - GRID_TOP) / CELL));
+  let best = null;
+  let bestDist = Infinity;
+  for (let r = r0; r <= r1; r++) {
+    for (let c = c0; c <= c1; c++) {
+      if (!grid[r][c]) continue;
+      const d = Math.hypot(FIELD_X + (c + 0.5) * CELL - b.x, GRID_TOP + (r + 0.5) * CELL - b.y);
+      if (d < bestDist) {
+        bestDist = d;
+        best = { col: c, row: r };
+      }
+    }
+  }
+  return best;
+}
+
+function breakCell(grid, hit, events) {
+  const color = grid[hit.row][hit.col];
+  grid[hit.row][hit.col] = 0;
+  events.push({
+    type: 'cell', col: hit.col, row: hit.row, color,
+    x: FIELD_X + (hit.col + 0.5) * CELL, y: GRID_TOP + (hit.row + 0.5) * CELL,
+  });
+}
+
+// Fait avancer la balle de dt secondes. grid (facultatif) : les cases
+// verrouillées du Tetris, que la balle casse en rebondissant dessus.
+// Renvoie la liste de ce qui s'est passé (rebonds, cases cassées, balle
+// perdue) pour que le reste du jeu réagisse : score, son, vibration, vies...
+export function stepBall(state, dt, grid = null) {
   const events = [];
   const b = state.ball;
 
@@ -74,18 +107,30 @@ export function stepBall(state, dt) {
   const steps = Math.max(1, Math.ceil(distance / MAX_MOVE));
   const h = dt / steps;
   for (let i = 0; i < steps; i++) {
-    if (moveOnce(state, h, events)) break;
+    if (moveOnce(state, h, events, grid)) break;
   }
   return events;
 }
 
 // Un petit pas. Renvoie true si la balle est perdue.
-function moveOnce(state, h, events) {
+function moveOnce(state, h, events, grid) {
   const b = state.ball;
   const p = state.paddle;
   const prevY = b.y;
 
+  // Une pièce vient de se verrouiller sur la balle : elle casse ce qui
+  // l'entoure sans rebondir, sinon elle resterait prisonnière.
+  for (let hit = touchedCell(b, grid); hit; hit = touchedCell(b, grid)) breakCell(grid, hit, events);
+
+  // On avance d'abord en x puis en y : on sait ainsi de quel côté la balle
+  // a touché une case, donc quelle direction inverser.
   b.x += b.vx * h;
+  const hitX = touchedCell(b, grid);
+  if (hitX) {
+    b.x -= b.vx * h;
+    b.vx = -b.vx;
+    breakCell(grid, hitX, events);
+  }
   if (b.x - b.r < LEFT) {
     b.x = LEFT + b.r;
     b.vx = Math.abs(b.vx);
@@ -97,6 +142,12 @@ function moveOnce(state, h, events) {
   }
 
   b.y += b.vy * h;
+  const hitY = touchedCell(b, grid);
+  if (hitY) {
+    b.y -= b.vy * h;
+    b.vy = -b.vy;
+    breakCell(grid, hitY, events);
+  }
   if (b.y - b.r < GRID_TOP) {
     b.y = GRID_TOP + b.r;
     b.vy = Math.abs(b.vy);

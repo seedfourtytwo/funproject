@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createBreakout, movePaddle, launch, stepBall } from './breakout.js';
 import {
-  FIELD_X, FIELD_W, GRID_TOP, PADDLE_W, PADDLE_Y, BALL_R, LAUNCH_DELAY, VIEW_H,
+  FIELD_X, FIELD_W, GRID_TOP, PADDLE_W, PADDLE_Y, BALL_R, LAUNCH_DELAY, VIEW_H, CELL, COLS, ROWS,
 } from './config.js';
 
 const speedOf = (b) => Math.hypot(b.vx, b.vy);
@@ -115,5 +115,62 @@ describe('balle perdue', () => {
     const events = stepBall(s, 0.1);
     expect(events.some((e) => e.type === 'lost')).toBe(true);
     expect(s.ball.stuck).toBe(true);
+  });
+});
+
+describe('collisions avec la grille', () => {
+  const emptyGrid = () => Array.from({ length: ROWS }, () => new Array(COLS).fill(0));
+  const cellCenter = (c, r) => [FIELD_X + (c + 0.5) * CELL, GRID_TOP + (r + 0.5) * CELL];
+
+  it('la balle qui monte casse la case et redescend', () => {
+    const grid = emptyGrid();
+    grid[5][4] = 3;
+    const [x, y] = cellCenter(4, 5);
+    const s = flyingBall(x, y + CELL, 0, -260);
+    const events = stepBall(s, 0.1, grid);
+    expect(grid[5][4]).toBe(0);
+    expect(s.ball.vy).toBeGreaterThan(0);
+    expect(events).toContainEqual(expect.objectContaining({ type: 'cell', col: 4, row: 5, color: 3 }));
+  });
+
+  it('de côté, elle repart dans l’autre sens', () => {
+    const grid = emptyGrid();
+    grid[5][6] = 1;
+    const [x, y] = cellCenter(5, 5);
+    const s = flyingBall(x, y, 260, 0.0001);
+    stepBall(s, 0.1, grid);
+    expect(grid[5][6]).toBe(0);
+    expect(s.ball.vx).toBeLessThan(0);
+  });
+
+  it('entre deux cases, elle n’en casse qu’une', () => {
+    const grid = emptyGrid();
+    grid[5][4] = 1;
+    grid[5][5] = 1;
+    const x = FIELD_X + 5 * CELL; // pile sur la jointure
+    const s = flyingBall(x, GRID_TOP + 7 * CELL, 0, -260);
+    stepBall(s, 0.1, grid);
+    expect(grid[5][4] + grid[5][5]).toBe(1);
+  });
+
+  it('même très vite, elle ne traverse pas une rangée', () => {
+    const grid = emptyGrid();
+    for (let c = 0; c < COLS; c++) grid[3][c] = 2;
+    const [x] = cellCenter(4, 0);
+    const s = flyingBall(x, GRID_TOP + 10 * CELL, 0, -3000);
+    stepBall(s, 0.1, grid); // 300 px en un seul appel
+    expect(grid[3].filter((v) => v === 0)).toHaveLength(1);
+    expect(s.ball.y).toBeGreaterThan(GRID_TOP + 4 * CELL - BALL_R - 0.01);
+  });
+
+  it('coincée dans une case (pièce verrouillée sur elle), elle la casse sans rebondir', () => {
+    const grid = emptyGrid();
+    grid[5][4] = 1;
+    const [x, y] = cellCenter(4, 5);
+    const s = flyingBall(x, y, 0, -260);
+    const events = stepBall(s, 0.01, grid);
+    expect(grid[5][4]).toBe(0);
+    expect(s.ball.vy).toBeLessThan(0);
+    expect(events.some((e) => e.type === 'cell')).toBe(true);
   });
 });

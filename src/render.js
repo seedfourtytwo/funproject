@@ -53,6 +53,30 @@ export function drawFrame(ctx, game) {
 
   drawTetris(ctx, game.tetris);
   drawBreakout(ctx, game.breakout);
+  drawHud(ctx, game);
+  if (game.state === 'over') drawGameOver(ctx, game);
+}
+
+function drawHud(ctx, game) {
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 16px system-ui, sans-serif';
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+  ctx.fillText(String(game.score), 14, 28);
+  ctx.textAlign = 'center';
+  ctx.fillText('♥'.repeat(game.lives), VIEW_W / 2, 28);
+}
+
+function drawGameOver(ctx, game) {
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+  ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+  ctx.fillStyle = '#fff';
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 28px system-ui, sans-serif';
+  ctx.fillText('Perdu !', VIEW_W / 2, VIEW_H / 2 - 30);
+  ctx.font = '16px system-ui, sans-serif';
+  ctx.fillText(`Score : ${game.score}`, VIEW_W / 2, VIEW_H / 2 + 6);
+  ctx.fillText('Touche pour rejouer', VIEW_W / 2, VIEW_H / 2 + 40);
 }
 
 function drawCell(ctx, x, y, size, color) {
