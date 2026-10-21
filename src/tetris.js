@@ -118,9 +118,10 @@ function lock(t) {
   if (full.length) {
     // Le tas pend du plafond : on garde les autres lignes dans l'ordre, tassées
     // vers le haut, et on ajoute des lignes vides en bas.
+    const removed = full.flatMap((r) => t.board[r].map((color, c) => [c, r, color]));
     const kept = t.board.filter((_, r) => !full.includes(r));
     t.board = [...kept, ...emptyBoard().slice(0, full.length)];
-    events.push({ type: 'lines', rows: full, count: full.length });
+    events.push({ type: 'lines', rows: full, count: full.length, cells: removed });
   }
 
   // Défaite : le tas touche la ligne du bas, là où les pièces apparaissent.

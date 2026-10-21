@@ -1,5 +1,5 @@
 import {
-  GRID_BOTTOM, MOVE_STEP_PX, SWIPE_UP_PX, TAP_SLOP_PX, TAP_MS,
+  GRID_BOTTOM, PAUSE_BUTTON, MOVE_STEP_PX, SWIPE_UP_PX, TAP_SLOP_PX, TAP_MS,
   PADDLE_SENSITIVITY, PADDLE_KEY_SPEED,
 } from './config.js';
 
@@ -58,6 +58,10 @@ export function createGestures({ scale, action, paddle }) {
     cancel(id) {
       fingers.delete(id);
     },
+
+    cancelAll() {
+      fingers.clear();
+    },
   };
 }
 
@@ -75,11 +79,22 @@ export function createInput(screen) {
     paddle: (dx) => { input.paddleDx += dx; },
   });
 
-  // Coordonnée verticale du doigt dans l'écran logique 360 × 640.
+  // Position du doigt dans l'écran logique.
+  const logicalX = (e) => (e.clientX - screen.left) / screen.scale;
   const logicalY = (e) => (e.clientY - screen.top) / screen.scale;
+  const onPauseButton = (e) => {
+    const b = PAUSE_BUTTON;
+    const x = logicalX(e);
+    const y = logicalY(e);
+    return x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h;
+  };
 
   canvas.addEventListener('pointerdown', (e) => {
     e.preventDefault();
+    if (onPauseButton(e)) {
+      input.actions.push('pause');
+      return;
+    }
     canvas.setPointerCapture(e.pointerId);
     input.taps++;
     const zone = logicalY(e) < GRID_BOTTOM ? 'piece' : 'paddle';
@@ -121,6 +136,10 @@ export function createInput(screen) {
   };
 
   input.takeActions = () => input.actions.splice(0);
+  input.resetGestures = () => {
+    gestures.cancelAll();
+    input.actions.length = 0;
+  };
   input.takePaddle = () => {
     const dx = input.paddleDx;
     input.paddleDx = 0;

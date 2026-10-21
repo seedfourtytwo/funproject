@@ -70,6 +70,14 @@ describe('zone haute : la pièce', () => {
     expect(actions).not.toContain('drop');
   });
 
+  it('cancelAll oublie tous les doigts posés (début de partie, reprise)', () => {
+    const { g, actions } = setup();
+    g.down(1, 100, 100, 0, 'piece');
+    g.cancelAll();
+    g.up(1, 100, 100, 50);
+    expect(actions).toEqual([]);
+  });
+
   it('un geste annulé par le système ne fait rien', () => {
     const { g, actions } = setup();
     g.down(1, 100, 100, 0, 'piece');

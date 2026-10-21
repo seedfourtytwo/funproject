@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  createTetris, stepTetris, tryMove, tryRotate, hardDrop, pieceCells, TYPES,
+  createTetris, stepTetris, tryMove, tryRotate, hardDrop, pieceCells, colorOf, TYPES,
 } from './tetris.js';
 import { COLS, ROWS } from './config.js';
 
@@ -137,6 +137,8 @@ describe('lignes complètes', () => {
     const { events } = hardDrop(t);
     const lines = events.find((e) => e.type === 'lines');
     expect(lines.rows).toEqual([0]);
+    expect(lines.cells).toHaveLength(COLS); // pour faire éclater chaque case effacée
+    expect(lines.cells[3]).toEqual([3, 0, colorOf('I')]);
     expect(t.board[0][0]).toBe(2); // la case est remontée
     expect(t.board[1][0]).toBe(0);
   });
