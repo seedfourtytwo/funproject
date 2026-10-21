@@ -1,4 +1,4 @@
-import { VIEW_W, VIEW_H } from './config.js';
+import { VIEW_W, VIEW_H, FIELD_X, FIELD_W, GRID_TOP, GRID_BOTTOM } from './config.js';
 
 // Adapte le canvas à l'écran : on garde le format 360 × 640, on l'agrandit
 // au maximum sans le déformer (bandes noires sur les côtés si besoin, c'est
@@ -35,10 +35,25 @@ export function createScreen(canvas) {
   return screen;
 }
 
-export function drawFrame(ctx, world) {
+export function drawFrame(ctx, game) {
   ctx.fillStyle = '#060a1f';
   ctx.fillRect(0, 0, VIEW_W, VIEW_H);
 
-  ctx.fillStyle = '#3cf';
-  ctx.fillRect(world.x - 10, world.y - 10, 20, 20);
+  // Le terrain, et la limite entre la zone Tetris et la zone raquette.
+  ctx.fillStyle = '#0b1233';
+  ctx.fillRect(FIELD_X, GRID_TOP, FIELD_W, VIEW_H - GRID_TOP);
+  ctx.fillStyle = '#1b2555';
+  ctx.fillRect(FIELD_X, GRID_BOTTOM, FIELD_W, 1);
+
+  drawBreakout(ctx, game.breakout);
+}
+
+function drawBreakout(ctx, { paddle, ball }) {
+  ctx.fillStyle = '#9ef';
+  ctx.fillRect(paddle.x - paddle.w / 2, paddle.y, paddle.w, paddle.h);
+
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+  ctx.fill();
 }

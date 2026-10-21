@@ -1,17 +1,16 @@
 import './style.css';
-import { VIEW_W, VIEW_H, STEP } from './config.js';
+import { STEP } from './config.js';
 import { createScreen, drawFrame } from './render.js';
+import { createInput } from './input.js';
+import { createBreakout, movePaddle, stepBall } from './breakout.js';
 
 const screen = createScreen(document.getElementById('game'));
-
-// Un carré qui rebondit, pour vérifier que la boucle tourne.
-const world = { x: VIEW_W / 2, y: VIEW_H / 2, vx: 140, vy: 90 };
+const input = createInput(screen);
+const game = { breakout: createBreakout() };
 
 function update(dt) {
-  world.x += world.vx * dt;
-  world.y += world.vy * dt;
-  if (world.x < 10 || world.x > VIEW_W - 10) world.vx = -world.vx;
-  if (world.y < 10 || world.y > VIEW_H - 10) world.vy = -world.vy;
+  movePaddle(game.breakout, input.takePaddle() + input.keyPaddle(dt));
+  stepBall(game.breakout, dt);
 }
 
 // La boucle de jeu. requestAnimationFrame appelle frame() avant chaque image.
@@ -28,7 +27,7 @@ function frame(now) {
     update(STEP);
     lag -= STEP;
   }
-  drawFrame(screen.ctx, world);
+  drawFrame(screen.ctx, game);
   requestAnimationFrame(frame);
 }
 
