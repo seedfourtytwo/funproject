@@ -1,0 +1,7 @@
+// Mise en ligne sur Cloudflare : un Worker qui sert seulement les fichiers
+// du jeu construits dans dist/ (aucun code serveur).
+{
+  "name": "brick-tetris",
+  "compatibility_date": "2026-10-19",
+  "assets": { "directory": "./dist" }
+}
