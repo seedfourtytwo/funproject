@@ -1,5 +1,5 @@
 import {
-  VIEW_W, PAUSE_BUTTON, STICK_RADIUS_PX, STICK_TRIGGER, STICK_DEADZONE,
+  VIEW_W, PAUSE_BUTTON, STICK_RADIUS_PX, STICK_TRIGGER, STICK_DEADZONE, STICK_CURVE,
   REPEAT_DELAY, REPEAT_RATE, TAP_SLOP_PX, TAP_MS, PADDLE_STICK_SPEED, PADDLE_KEY_SPEED,
 } from './config.js';
 
@@ -87,7 +87,7 @@ export function createSticks({ action }) {
       const v = (s.kx - s.ox) / STICK_RADIUS_PX;
       const a = Math.abs(v);
       if (a < STICK_DEADZONE) return 0;
-      return Math.sign(v) * ((a - STICK_DEADZONE) / (1 - STICK_DEADZONE)) ** 1.6;
+      return Math.sign(v) * ((a - STICK_DEADZONE) / (1 - STICK_DEADZONE)) ** STICK_CURVE;
     },
 
     // Les joysticks en cours, pour les dessiner : centre (ox, oy) et tête (kx, ky).

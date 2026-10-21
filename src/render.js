@@ -81,7 +81,7 @@ function drawTorches(ctx, time) {
   const frame = sprites.torch[Math.floor(time * 6) % 2];
   const w = frame.width * ART;
   const h = frame.height * ART;
-  for (const y of [150, 300, 470]) {
+  for (const y of [150, 330, 510, 690]) {
     ctx.drawImage(frame, FIELD_X / 2 - w / 2, y, w, h);
     ctx.drawImage(frame, VIEW_W - FIELD_X / 2 - w / 2, y, w, h);
   }
@@ -226,11 +226,13 @@ function drawHud(ctx, game) {
   const brick = sprites.bricks[colorOf(game.tetris.next)];
   for (const [c, r] of cells) ctx.drawImage(brick, ox + c * size, oy + r * size, size, size);
 
-  // Bouton pause, gravé dans le mur.
+  // Bouton pause : une petite dalle de pierre dans le bandeau.
   if (game.state === 'play') {
     const b = PAUSE_BUTTON;
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+    ctx.fillStyle = '#4c5a78';
     ctx.fillRect(b.x, b.y, b.w, b.h);
+    ctx.fillStyle = '#1c2438';
+    ctx.fillRect(b.x + 2, b.y + 2, b.w - 4, b.h - 4);
     ctx.fillStyle = '#a8b4d0';
     ctx.fillRect(b.x + 12, b.y + 10, 5, b.h - 20);
     ctx.fillRect(b.x + b.w - 17, b.y + 10, 5, b.h - 20);

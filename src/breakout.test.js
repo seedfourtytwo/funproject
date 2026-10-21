@@ -164,7 +164,7 @@ describe('collisions avec la grille', () => {
     grid[5][5] = 1;
     const x = FIELD_X + 5 * CELL; // pile sur la jointure
     const s = flyingBall(x, GRID_TOP + 7 * CELL, 0, -260);
-    stepBall(s, 0.1, solids(grid));
+    stepBall(s, (1.5 * CELL) / 260, solids(grid)); // le temps de monter d'une case et demie
     expect(grid[5][4] + grid[5][5]).toBe(1);
   });
 
@@ -200,7 +200,7 @@ describe('bonus', () => {
     const x = FIELD_X + 4.5 * CELL;
     const s = flyingBall(x, GRID_TOP + 7 * CELL, 0, -260);
     applyPowerUp(s, 'star');
-    stepBall(s, 0.2, solids(grid));
+    stepBall(s, (3 * CELL) / 260, solids(grid)); // le temps de monter de trois cases
     expect(grid[5][4] + grid[4][4]).toBe(0);
     expect(s.ball.vy).toBeLessThan(0); // toujours vers le haut
     stepBall(s, STAR_TIME, null);
