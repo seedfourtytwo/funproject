@@ -70,6 +70,7 @@ export function drawFrame(screen, game) {
     ctx.fillRect(0, 0, VIEW_W, VIEW_H);
   }
 
+  if (game.state === 'play') drawSticks(ctx, game);
   drawHud(ctx, game);
   if (game.state === 'menu') drawMenu(ctx, game);
   else if (game.state === 'pause') drawPause(ctx);
@@ -236,6 +237,52 @@ function drawHud(ctx, game) {
   }
 }
 
+const STICK_COLORS = { left: '#f8d800', right: '#3cbcfc' };
+const STICK_HINT_TIME = 6; // secondes pendant lesquelles on montre où poser les pouces
+
+function circle(ctx, x, y, r) {
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+}
+
+// Les joysticks sous les pouces. En début de partie, deux repères pâles
+// montrent où les poser (ils disparaissent dès qu'on s'en sert).
+function drawSticks(ctx, game) {
+  const sticks = game.sticks ?? [];
+  if (game.time < STICK_HINT_TIME) {
+    const fade = Math.min(1, STICK_HINT_TIME - game.time);
+    const r = 32;
+    const y = VIEW_H - 140;
+    for (const [side, x, label] of [['left', 90, 'PIECE'], ['right', VIEW_W - 90, 'PLANCHE']]) {
+      if (sticks.some((s) => s.side === side)) continue;
+      ctx.globalAlpha = 0.5 * fade;
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = STICK_COLORS[side];
+      circle(ctx, x, y, r);
+      ctx.stroke();
+      text(ctx, label, x, y + r + 14, 8, STICK_COLORS[side]);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  for (const s of sticks) {
+    ctx.globalAlpha = 0.25;
+    ctx.fillStyle = '#000';
+    circle(ctx, s.ox, s.oy, s.r);
+    ctx.fill();
+    ctx.globalAlpha = 0.6;
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = STICK_COLORS[s.side];
+    circle(ctx, s.ox, s.oy, s.r);
+    ctx.stroke();
+    ctx.globalAlpha = 0.8;
+    ctx.fillStyle = STICK_COLORS[s.side];
+    circle(ctx, s.kx, s.ky, s.r * 0.42);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
 function dim(ctx, alpha = 0.6) {
   ctx.fillStyle = `rgba(0, 0, 0, ${alpha})`;
   ctx.fillRect(0, 0, VIEW_W, VIEW_H);
@@ -264,10 +311,9 @@ function drawMenu(ctx, game) {
   ctx.font = '13px system-ui, sans-serif';
   ctx.textAlign = 'center';
   const help = [
-    'En haut : glisse pour bouger la pièce,',
-    'touche pour la tourner,',
-    'glisse vers le haut pour la lancer.',
-    'En bas : glisse pour bouger la planche.',
+    'Pouce gauche : joystick de la pièce.',
+    '← → la bouge, ↑ la lance, ↓ ou touche la tourne.',
+    'Pouce droit : joystick de la planche.',
     'La fée casse tout, même la pièce qui bouge.',
     'Attrape les bonus qui tombent !',
   ];

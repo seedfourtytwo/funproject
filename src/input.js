@@ -1,91 +1,119 @@
 import {
-  GRID_BOTTOM, PAUSE_BUTTON, MOVE_STEP_PX, SWIPE_UP_PX, TAP_SLOP_PX, TAP_MS,
-  PADDLE_SENSITIVITY, PADDLE_KEY_SPEED,
+  VIEW_W, PAUSE_BUTTON, STICK_RADIUS_PX, STICK_TRIGGER, STICK_DEADZONE,
+  REPEAT_DELAY, REPEAT_RATE, TAP_SLOP_PX, TAP_MS, PADDLE_STICK_SPEED, PADDLE_KEY_SPEED,
 } from './config.js';
 
-// Reconnaît les gestes, doigt par doigt. Ne connaît ni l'écran ni le jeu :
-// on lui donne des positions (en pixels d'écran) et des heures (en ms),
-// il appelle action('left' | 'right' | 'rotate' | 'drop') ou paddle(dx).
-export function createGestures({ scale, action, paddle }) {
-  const fingers = new Map();
+// Les deux joysticks. Chacun apparaît là où le pouce se pose (son centre),
+// et la « tête » suit le pouce sans dépasser STICK_RADIUS_PX.
+//   gauche : la pièce. Gauche / droite = une colonne (répétée si on tient),
+//            haut = chute au plafond, bas ou petite touche = rotation.
+//   droite : la planche. Plus on pousse, plus elle va vite.
+// Ne connaît ni l'écran ni le jeu : on lui donne des positions (pixels
+// d'écran) et des heures (ms), il appelle action('left' | 'right' | 'rotate' | 'drop').
+export function createSticks({ action }) {
+  const sticks = new Map(); // un joystick par côté : 'left' / 'right'
+
+  const find = (id) => [...sticks.values()].find((s) => s.id === id);
+
+  // Où pointe le joystick gauche : 'left', 'right', 'up', 'down' ou null.
+  function direction(s) {
+    const dx = s.kx - s.ox;
+    const dy = s.ky - s.oy;
+    if (Math.hypot(dx, dy) < STICK_TRIGGER * STICK_RADIUS_PX) return null;
+    if (Math.abs(dx) > Math.abs(dy)) return dx > 0 ? 'right' : 'left';
+    return dy < 0 ? 'up' : 'down';
+  }
+
+  const DIRECTION_ACTIONS = { left: 'left', right: 'right', up: 'drop', down: 'rotate' };
 
   return {
-    down(id, x, y, t, zone) {
-      fingers.set(id, { zone, x0: x, y0: y, t0: t, lastX: x, stepX: 0, travel: 0, dropped: false });
+    down(id, x, y, t, side) {
+      if (sticks.has(side)) return; // déjà un pouce de ce côté
+      sticks.set(side, { id, side, ox: x, oy: y, kx: x, ky: y, t0: t, travel: 0, dir: null, repeat: 0 });
     },
 
     move(id, x, y) {
-      const f = fingers.get(id);
-      if (!f) return;
-      const dx = x - f.lastX;
-      f.lastX = x;
-      f.travel = Math.max(f.travel, Math.hypot(x - f.x0, y - f.y0));
+      const s = find(id);
+      if (!s) return;
+      const dx = x - s.ox;
+      const dy = y - s.oy;
+      const dist = Math.hypot(dx, dy);
+      s.travel = Math.max(s.travel, dist);
+      const k = dist > STICK_RADIUS_PX ? STICK_RADIUS_PX / dist : 1;
+      s.kx = s.ox + dx * k;
+      s.ky = s.oy + dy * k;
 
-      if (f.zone === 'paddle') {
-        paddle((dx / scale()) * PADDLE_SENSITIVITY);
-        return;
-      }
-      if (f.dropped) return;
-
-      const totalX = x - f.x0;
-      const totalY = y - f.y0;
-      if (-totalY >= SWIPE_UP_PX && -totalY > Math.abs(totalX)) {
-        f.dropped = true;
-        action('drop');
-        return;
-      }
-
-      f.stepX += dx;
-      while (f.stepX >= MOVE_STEP_PX) {
-        f.stepX -= MOVE_STEP_PX;
-        action('right');
-      }
-      while (f.stepX <= -MOVE_STEP_PX) {
-        f.stepX += MOVE_STEP_PX;
-        action('left');
-      }
+      if (s.side !== 'left') return;
+      const dir = direction(s);
+      if (dir === s.dir) return;
+      s.dir = dir;
+      s.repeat = REPEAT_DELAY;
+      if (dir) action(DIRECTION_ACTIONS[dir]);
     },
 
     up(id, x, y, t) {
-      const f = fingers.get(id);
-      if (!f) return;
-      this.move(id, x, y);
-      fingers.delete(id);
-      const isTap = f.travel < TAP_SLOP_PX && t - f.t0 < TAP_MS;
-      if (f.zone === 'piece' && isTap) action('rotate');
+      const s = find(id);
+      if (!s) return;
+      sticks.delete(s.side);
+      const isTap = s.travel < TAP_SLOP_PX && t - s.t0 < TAP_MS;
+      if (s.side === 'left' && isTap) action('rotate');
     },
 
     cancel(id) {
-      fingers.delete(id);
+      const s = find(id);
+      if (s) sticks.delete(s.side);
     },
 
     cancelAll() {
-      fingers.clear();
+      sticks.clear();
+    },
+
+    // Fait passer le temps : répète gauche / droite tant qu'on tient.
+    update(dt) {
+      const s = sticks.get('left');
+      if (!s || (s.dir !== 'left' && s.dir !== 'right')) return;
+      s.repeat -= dt;
+      while (s.repeat <= 0) {
+        action(s.dir);
+        s.repeat += REPEAT_RATE;
+      }
+    },
+
+    // Vitesse demandée pour la planche, de -1 (à fond à gauche) à 1.
+    // Courbe douce : petite poussée = petite vitesse, pour viser.
+    paddle() {
+      const s = sticks.get('right');
+      if (!s) return 0;
+      const v = (s.kx - s.ox) / STICK_RADIUS_PX;
+      const a = Math.abs(v);
+      if (a < STICK_DEADZONE) return 0;
+      return Math.sign(v) * ((a - STICK_DEADZONE) / (1 - STICK_DEADZONE)) ** 1.6;
+    },
+
+    // Les joysticks en cours, pour les dessiner : centre (ox, oy) et tête (kx, ky).
+    sticks() {
+      return [...sticks.values()].map(({ side, ox, oy, kx, ky }) => ({ side, ox, oy, kx, ky }));
     },
   };
 }
 
-// Branche les gestes et le clavier sur le canvas. Le jeu lit ensuite :
-//   input.actions : liste des commandes de pièce en attente (on la vide en la lisant)
-//   input.paddleDx : déplacement de raquette accumulé (idem)
-//   input.taps : nombre de touchers, pour les écrans menu / pause / fin
+// Branche les joysticks et le clavier sur le canvas. Le jeu lit ensuite :
+//   input.takeActions() : commandes de pièce en attente (et 'pause')
+//   input.paddleMove(dt) : déplacement de la planche pendant dt secondes
+//   input.takeTaps() : nombre de touchers, pour les écrans menu / pause / fin
+//   input.sticks() : les joysticks à dessiner, en pixels logiques
 export function createInput(screen) {
-  const input = { actions: [], paddleDx: 0, taps: 0, keys: new Set() };
+  const input = { actions: [], taps: 0, keys: new Set() };
   const canvas = screen.canvas;
-
-  const gestures = createGestures({
-    scale: () => screen.scale,
-    action: (a) => input.actions.push(a),
-    paddle: (dx) => { input.paddleDx += dx; },
-  });
+  const sticks = createSticks({ action: (a) => input.actions.push(a) });
 
   // Position du doigt dans l'écran logique.
-  const logicalX = (e) => (e.clientX - screen.left) / screen.scale;
-  const logicalY = (e) => (e.clientY - screen.top) / screen.scale;
+  const logicalX = (clientX) => (clientX - screen.left) / screen.scale;
+  const logicalY = (clientY) => (clientY - screen.top) / screen.scale;
   const onPauseButton = (e) => {
     const b = PAUSE_BUTTON;
-    const x = logicalX(e);
-    const y = logicalY(e);
+    const x = logicalX(e.clientX);
+    const y = logicalY(e.clientY);
     return x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h;
   };
 
@@ -97,16 +125,12 @@ export function createInput(screen) {
     }
     canvas.setPointerCapture(e.pointerId);
     input.taps++;
-    const zone = logicalY(e) < GRID_BOTTOM ? 'piece' : 'paddle';
-    gestures.down(e.pointerId, e.clientX, e.clientY, e.timeStamp, zone);
+    const side = logicalX(e.clientX) < VIEW_W / 2 ? 'left' : 'right';
+    sticks.down(e.pointerId, e.clientX, e.clientY, e.timeStamp, side);
   });
-  canvas.addEventListener('pointermove', (e) => {
-    // Les mouvements intermédiaires groupés par le navigateur, pour plus de précision.
-    const events = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
-    for (const c of events.length ? events : [e]) gestures.move(e.pointerId, c.clientX, c.clientY);
-  });
-  canvas.addEventListener('pointerup', (e) => gestures.up(e.pointerId, e.clientX, e.clientY, e.timeStamp));
-  canvas.addEventListener('pointercancel', (e) => gestures.cancel(e.pointerId));
+  canvas.addEventListener('pointermove', (e) => sticks.move(e.pointerId, e.clientX, e.clientY));
+  canvas.addEventListener('pointerup', (e) => sticks.up(e.pointerId, e.clientX, e.clientY, e.timeStamp));
+  canvas.addEventListener('pointercancel', (e) => sticks.cancel(e.pointerId));
   canvas.addEventListener('contextmenu', (e) => e.preventDefault());
   // Safari iOS : empêche le zoom à deux doigts.
   document.addEventListener('gesturestart', (e) => e.preventDefault());
@@ -127,23 +151,27 @@ export function createInput(screen) {
   window.addEventListener('keyup', (e) => input.keys.delete(e.code));
   window.addEventListener('blur', () => input.keys.clear());
 
-  // Raquette au clavier (A / D maintenues).
-  input.keyPaddle = (dt) => {
-    let dir = 0;
-    if (input.keys.has('KeyA')) dir -= 1;
-    if (input.keys.has('KeyD')) dir += 1;
-    return dir * PADDLE_KEY_SPEED * dt;
+  input.update = (dt) => sticks.update(dt);
+
+  // Planche : joystick droit, ou A / D au clavier.
+  input.paddleMove = (dt) => {
+    let keys = 0;
+    if (input.keys.has('KeyA')) keys -= 1;
+    if (input.keys.has('KeyD')) keys += 1;
+    return sticks.paddle() * PADDLE_STICK_SPEED * dt + keys * PADDLE_KEY_SPEED * dt;
   };
+
+  input.sticks = () => sticks.sticks().map((s) => ({
+    side: s.side,
+    ox: logicalX(s.ox), oy: logicalY(s.oy),
+    kx: logicalX(s.kx), ky: logicalY(s.ky),
+    r: STICK_RADIUS_PX / screen.scale,
+  }));
 
   input.takeActions = () => input.actions.splice(0);
   input.resetGestures = () => {
-    gestures.cancelAll();
+    sticks.cancelAll();
     input.actions.length = 0;
-  };
-  input.takePaddle = () => {
-    const dx = input.paddleDx;
-    input.paddleDx = 0;
-    return dx;
   };
   input.takeTaps = () => {
     const n = input.taps;

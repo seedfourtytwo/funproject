@@ -8,9 +8,12 @@ En ligne : https://brick-tetris.christopher-k.workers.dev
 
 ## Jouer
 
-- **En haut** : glisse à gauche ou à droite pour bouger la pièce, touche pour la
-  tourner, glisse vers le haut pour la lancer jusqu'au plafond.
-- **En bas** : glisse pour bouger la planche. Elle suit ton doigt sans sauter.
+- **Pouce gauche** : un joystick apparaît sous ton pouce, n'importe où sur la
+  moitié gauche de l'écran. Pousse à gauche ou à droite pour bouger la pièce
+  (tiens pour qu'elle continue), vers le haut pour la lancer au plafond, vers
+  le bas ou une petite touche pour la tourner.
+- **Pouce droit** : le joystick de la planche, sur la moitié droite. Plus tu
+  pousses loin, plus elle va vite ; une petite poussée pour viser.
 - La fée casse les briques du tas et celles de la pièce qui bouge (plus de
   points). Casse les quatre cases d'une pièce avant qu'elle se colle : bonus.
 - Combo : chaque série de 3 briques cassées sans que la fée touche la planche

@@ -185,9 +185,10 @@ function update(dt) {
   game.time += dt;
   stepFx(game.fx, dt);
 
+  if (game.state === 'play') input.update(dt); // répétition du joystick gauche
   const taps = input.takeTaps();
   const actions = input.takeActions();
-  const paddleDx = input.takePaddle() + input.keyPaddle(dt);
+  const paddleDx = input.paddleMove(dt);
   const pausePressed = actions.includes('pause');
 
   switch (game.state) {
@@ -256,6 +257,7 @@ function frame(now) {
     update(STEP);
     lag -= STEP;
   }
+  game.sticks = input.sticks();
   drawFrame(screen, game);
   requestAnimationFrame(frame);
 }

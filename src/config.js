@@ -39,12 +39,17 @@ export const BIG_PADDLE_TIME = 12; // ... pendant 12 s
 export const STAR_TIME = 6; // étoile : la fée traverse tout pendant 6 s
 export const MAX_LIVES = 5; // cœur : une vie de plus, jusqu'à 5
 
-// Gestes, en pixels d'écran (ce que le doigt ressent, quelle que soit la taille du téléphone).
-export const MOVE_STEP_PX = 30; // glisser de 30 px = la pièce bouge d'une colonne
-export const SWIPE_UP_PX = 60; // glisser vers le haut de 60 px = chute instantanée
-export const TAP_SLOP_PX = 12; // un toucher qui bouge moins que ça reste un toucher
-export const TAP_MS = 300; // et qui dure moins que ça
-export const PADDLE_SENSITIVITY = 1.2; // la raquette va un peu plus vite que le doigt
+// Les deux joysticks, en pixels d'écran (ce que le pouce ressent, quelle que
+// soit la taille du téléphone). Ils apparaissent là où le pouce se pose :
+// moitié gauche de l'écran = la pièce, moitié droite = la planche.
+export const STICK_RADIUS_PX = 50; // course du joystick, du centre au bord
+export const STICK_TRIGGER = 0.5; // pièce : il faut pousser à mi-course pour agir
+export const STICK_DEADZONE = 0.12; // planche : en dessous, elle ne bouge pas
+export const REPEAT_DELAY = 0.17; // pièce : tenir à gauche ou à droite répète après 0,17 s...
+export const REPEAT_RATE = 0.05; // ... puis une colonne toutes les 0,05 s
+export const TAP_SLOP_PX = 12; // un toucher qui bouge moins que ça reste un toucher (rotation)
+export const TAP_MS = 250; // et qui dure moins que ça
+export const PADDLE_STICK_SPEED = 560; // planche à fond : px logiques par seconde
 export const PADDLE_KEY_SPEED = 420; // px logiques par seconde au clavier
 
 // Bouton pause, dans le mur de gauche, en haut.
