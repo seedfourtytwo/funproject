@@ -247,23 +247,36 @@ function circle(ctx, x, y, r) {
   ctx.arc(x, y, r, 0, Math.PI * 2);
 }
 
-// Les joysticks sous les pouces. En début de partie, deux repères pâles
-// montrent où les poser (ils disparaissent dès qu'on s'en sert).
+// Le joystick sous le pouce gauche. En début de partie, deux repères pâles
+// montrent quoi faire de chaque pouce.
 function drawSticks(ctx, game) {
   const sticks = game.sticks ?? [];
   if (game.time < STICK_HINT_TIME) {
     const fade = Math.min(1, STICK_HINT_TIME - game.time);
     const r = 32;
     const y = VIEW_H - 140;
-    for (const [side, x, label] of [['left', 90, 'PIECE'], ['right', VIEW_W - 90, 'PLANCHE']]) {
-      if (sticks.some((s) => s.side === side)) continue;
-      ctx.globalAlpha = 0.5 * fade;
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = STICK_COLORS[side];
-      circle(ctx, x, y, r);
+    ctx.globalAlpha = 0.5 * fade;
+    ctx.lineWidth = 2;
+
+    if (!sticks.length) {
+      ctx.strokeStyle = STICK_COLORS.left;
+      circle(ctx, 90, y, r);
       ctx.stroke();
-      text(ctx, label, x, y + r + 14, 8, STICK_COLORS[side]);
     }
+    text(ctx, 'PIECE', 90, y + r + 14, 8, STICK_COLORS.left);
+
+    // Une flèche à deux pointes : glisser le doigt de droite à gauche.
+    const x = VIEW_W - 90;
+    ctx.fillStyle = STICK_COLORS.right;
+    ctx.fillRect(x - r + 6, y - 1, 2 * r - 12, 2);
+    for (const dir of [-1, 1]) {
+      ctx.beginPath();
+      ctx.moveTo(x + dir * r, y);
+      ctx.lineTo(x + dir * (r - 10), y - 7);
+      ctx.lineTo(x + dir * (r - 10), y + 7);
+      ctx.fill();
+    }
+    text(ctx, 'PLANCHE', x, y + r + 14, 8, STICK_COLORS.right);
     ctx.globalAlpha = 1;
   }
 
@@ -315,7 +328,7 @@ function drawMenu(ctx, game) {
   const help = [
     'Pouce gauche : joystick de la pièce.',
     '← → la bouge, ↑ la lance, ↓ ou touche la tourne.',
-    'Pouce droit : joystick de la planche.',
+    'Pouce droit : glisse pour bouger la planche.',
     'La fée casse tout, même la pièce qui bouge.',
     'Attrape les bonus qui tombent !',
   ];

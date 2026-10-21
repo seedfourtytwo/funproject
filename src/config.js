@@ -39,18 +39,17 @@ export const BIG_PADDLE_TIME = 12; // ... pendant 12 s
 export const STAR_TIME = 6; // étoile : la fée traverse tout pendant 6 s
 export const MAX_LIVES = 5; // cœur : une vie de plus, jusqu'à 5
 
-// Les deux joysticks, en pixels d'écran (ce que le pouce ressent, quelle que
-// soit la taille du téléphone). Ils apparaissent là où le pouce se pose :
-// moitié gauche de l'écran = la pièce, moitié droite = la planche.
+// Les commandes, en pixels d'écran (ce que le pouce ressent, quelle que soit
+// la taille du téléphone). Moitié gauche de l'écran : un joystick pour la
+// pièce, qui apparaît là où le pouce se pose. Moitié droite : la planche suit
+// le doigt qui glisse.
 export const STICK_RADIUS_PX = 60; // course du joystick, du centre au bord
-export const STICK_TRIGGER = 0.42; // pièce : il faut pousser de 25 px pour agir
-export const STICK_DEADZONE = 0.15; // planche : en dessous, elle ne bouge pas
-export const STICK_CURVE = 2; // planche : plus c'est grand, plus les petites poussées sont lentes (précision)
+export const STICK_TRIGGER = 0.42; // il faut pousser de 25 px pour agir
 export const REPEAT_DELAY = 0.17; // pièce : tenir à gauche ou à droite répète après 0,17 s...
 export const REPEAT_RATE = 0.05; // ... puis une colonne toutes les 0,05 s
 export const TAP_SLOP_PX = 12; // un toucher qui bouge moins que ça reste un toucher (rotation)
 export const TAP_MS = 250; // et qui dure moins que ça
-export const PADDLE_STICK_SPEED = 420; // planche à fond : px logiques par seconde
+export const PADDLE_DRAG_SENSITIVITY = 1; // 1 = la planche bouge exactement comme le doigt
 export const PADDLE_KEY_SPEED = 420; // px logiques par seconde au clavier
 
 // Bouton pause, dans le bandeau du haut, à gauche de la pièce suivante.

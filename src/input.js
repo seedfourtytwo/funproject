@@ -1,17 +1,19 @@
 import {
-  VIEW_W, PAUSE_BUTTON, STICK_RADIUS_PX, STICK_TRIGGER, STICK_DEADZONE, STICK_CURVE,
-  REPEAT_DELAY, REPEAT_RATE, TAP_SLOP_PX, TAP_MS, PADDLE_STICK_SPEED, PADDLE_KEY_SPEED,
+  VIEW_W, PAUSE_BUTTON, STICK_RADIUS_PX, STICK_TRIGGER,
+  REPEAT_DELAY, REPEAT_RATE, TAP_SLOP_PX, TAP_MS, PADDLE_DRAG_SENSITIVITY, PADDLE_KEY_SPEED,
 } from './config.js';
 
-// Les deux joysticks. Chacun apparaît là où le pouce se pose (son centre),
-// et la « tête » suit le pouce sans dépasser STICK_RADIUS_PX.
-//   gauche : la pièce. Gauche / droite = une colonne (répétée si on tient),
-//            haut = chute au plafond, bas ou petite touche = rotation.
-//   droite : la planche. Plus on pousse, plus elle va vite.
+// Les commandes des deux pouces.
+//   gauche : un joystick pour la pièce. Il apparaît là où le pouce se pose
+//            (son centre), et sa « tête » suit le pouce sans dépasser
+//            STICK_RADIUS_PX. Gauche / droite = une colonne (répétée si on
+//            tient), haut = chute au plafond, bas ou petite touche = rotation.
+//   droite : la planche suit le doigt qui glisse, du même nombre de pixels.
 // Ne connaît ni l'écran ni le jeu : on lui donne des positions (pixels
 // d'écran) et des heures (ms), il appelle action('left' | 'right' | 'rotate' | 'drop').
-export function createSticks({ action }) {
-  const sticks = new Map(); // un joystick par côté : 'left' / 'right'
+export function createControls({ action }) {
+  const sticks = new Map(); // un pouce par côté : 'left' / 'right'
+  let paddleDx = 0; // glissé du pouce droit pas encore donné à la planche
 
   const find = (id) => [...sticks.values()].find((s) => s.id === id);
 
@@ -39,11 +41,15 @@ export function createSticks({ action }) {
       const dy = y - s.oy;
       const dist = Math.hypot(dx, dy);
       s.travel = Math.max(s.travel, dist);
+      if (s.side === 'right') {
+        paddleDx += x - s.kx;
+        s.kx = x;
+        return;
+      }
       const k = dist > STICK_RADIUS_PX ? STICK_RADIUS_PX / dist : 1;
       s.kx = s.ox + dx * k;
       s.ky = s.oy + dy * k;
 
-      if (s.side !== 'left') return;
       const dir = direction(s);
       if (dir === s.dir) return;
       s.dir = dir;
@@ -66,6 +72,7 @@ export function createSticks({ action }) {
 
     cancelAll() {
       sticks.clear();
+      paddleDx = 0;
     },
 
     // Fait passer le temps : répète gauche / droite tant qu'on tient.
@@ -79,33 +86,31 @@ export function createSticks({ action }) {
       }
     },
 
-    // Vitesse demandée pour la planche, de -1 (à fond à gauche) à 1.
-    // Courbe douce : petite poussée = petite vitesse, pour viser.
-    paddle() {
-      const s = sticks.get('right');
-      if (!s) return 0;
-      const v = (s.kx - s.ox) / STICK_RADIUS_PX;
-      const a = Math.abs(v);
-      if (a < STICK_DEADZONE) return 0;
-      return Math.sign(v) * ((a - STICK_DEADZONE) / (1 - STICK_DEADZONE)) ** STICK_CURVE;
+    // Ce que le pouce droit a glissé depuis la dernière fois, en pixels
+    // logiques. scale : pixels d'écran par pixel logique.
+    takePaddle(scale = 1) {
+      const dx = (paddleDx / scale) * PADDLE_DRAG_SENSITIVITY;
+      paddleDx = 0;
+      return dx;
     },
 
-    // Les joysticks en cours, pour les dessiner : centre (ox, oy) et tête (kx, ky).
+    // Le joystick de la pièce s'il est tenu, pour le dessiner : centre (ox, oy) et tête (kx, ky).
     sticks() {
-      return [...sticks.values()].map(({ side, ox, oy, kx, ky }) => ({ side, ox, oy, kx, ky }));
+      const s = sticks.get('left');
+      return s ? [{ side: 'left', ox: s.ox, oy: s.oy, kx: s.kx, ky: s.ky }] : [];
     },
   };
 }
 
-// Branche les joysticks et le clavier sur le canvas. Le jeu lit ensuite :
+// Branche les deux pouces et le clavier sur le canvas. Le jeu lit ensuite :
 //   input.takeActions() : commandes de pièce en attente (et 'pause')
 //   input.paddleMove(dt) : déplacement de la planche pendant dt secondes
 //   input.takeTaps() : nombre de touchers, pour les écrans menu / pause / fin
-//   input.sticks() : les joysticks à dessiner, en pixels logiques
+//   input.sticks() : le joystick à dessiner, en pixels logiques
 export function createInput(screen) {
   const input = { actions: [], taps: 0, keys: new Set() };
   const canvas = screen.canvas;
-  const sticks = createSticks({ action: (a) => input.actions.push(a) });
+  const sticks = createControls({ action: (a) => input.actions.push(a) });
 
   // Position du doigt dans l'écran logique.
   const logicalX = (clientX) => (clientX - screen.left) / screen.scale;
@@ -153,12 +158,12 @@ export function createInput(screen) {
 
   input.update = (dt) => sticks.update(dt);
 
-  // Planche : joystick droit, ou A / D au clavier.
+  // Planche : glissé du pouce droit, ou A / D au clavier.
   input.paddleMove = (dt) => {
     let keys = 0;
     if (input.keys.has('KeyA')) keys -= 1;
     if (input.keys.has('KeyD')) keys += 1;
-    return sticks.paddle() * PADDLE_STICK_SPEED * dt + keys * PADDLE_KEY_SPEED * dt;
+    return sticks.takePaddle(screen.scale) + keys * PADDLE_KEY_SPEED * dt;
   };
 
   input.sticks = () => sticks.sticks().map((s) => ({

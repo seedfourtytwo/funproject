@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { createSticks } from './input.js';
-import { STICK_RADIUS_PX as R, REPEAT_DELAY, REPEAT_RATE, STICK_DEADZONE } from './config.js';
+import { createControls } from './input.js';
+import { STICK_RADIUS_PX as R, REPEAT_DELAY, REPEAT_RATE, PADDLE_DRAG_SENSITIVITY } from './config.js';
 
 function setup() {
   const actions = [];
-  const s = createSticks({ action: (a) => actions.push(a) });
+  const s = createControls({ action: (a) => actions.push(a) });
   return { s, actions };
 }
 
@@ -111,51 +111,34 @@ describe('joystick gauche : la pièce', () => {
   });
 });
 
-describe('joystick droit : la planche', () => {
-  it('au centre, la planche ne bouge pas', () => {
+describe('pouce droit : la planche suit le doigt', () => {
+  it('poser le doigt ne téléporte pas la planche', () => {
     const { s } = setup();
-    expect(s.paddle()).toBe(0);
     s.down(2, 300, 500, 0, 'right');
-    expect(s.paddle()).toBe(0);
+    expect(s.takePaddle()).toBe(0);
   });
 
-  it('à fond à droite : vitesse maximale', () => {
+  it('elle bouge exactement comme le doigt, en pixels logiques', () => {
     const { s } = setup();
     s.down(2, 300, 500, 0, 'right');
-    s.move(2, 300 + R * 2, 500);
-    expect(s.paddle()).toBe(1);
-    s.move(2, 300 - R, 500);
-    expect(s.paddle()).toBe(-1);
+    s.move(2, 340, 520);
+    expect(s.takePaddle(2)).toBeCloseTo((40 / 2) * PADDLE_DRAG_SENSITIVITY); // écran agrandi 2×
   });
 
-  it('petite poussée : petite vitesse, pour viser', () => {
+  it('chaque mouvement n’est compté qu’une fois', () => {
     const { s } = setup();
     s.down(2, 300, 500, 0, 'right');
-    s.move(2, 300 + R * 0.4, 500);
-    expect(s.paddle()).toBeGreaterThan(0);
-    expect(s.paddle()).toBeLessThan(0.3);
+    s.move(2, 310, 500);
+    s.takePaddle(1);
+    expect(s.takePaddle(1)).toBe(0);
+    s.move(2, 305, 500);
+    expect(s.takePaddle(1)).toBeCloseTo(-5 * PADDLE_DRAG_SENSITIVITY);
   });
 
-  it('zone morte : un pouce qui tremble ne bouge pas la planche', () => {
+  it('pas de joystick à dessiner à droite', () => {
     const { s } = setup();
     s.down(2, 300, 500, 0, 'right');
-    s.move(2, 300 + R * STICK_DEADZONE * 0.9, 500);
-    expect(s.paddle()).toBe(0);
-  });
-
-  it('seul le mouvement horizontal compte', () => {
-    const { s } = setup();
-    s.down(2, 300, 500, 0, 'right');
-    s.move(2, 300, 500 - R);
-    expect(s.paddle()).toBe(0);
-  });
-
-  it('relâcher : la planche s’arrête', () => {
-    const { s } = setup();
-    s.down(2, 300, 500, 0, 'right');
-    s.move(2, 300 + R, 500);
-    s.up(2, 300 + R, 500, 300);
-    expect(s.paddle()).toBe(0);
+    expect(s.sticks()).toEqual([]);
   });
 
   it('une touche à droite ne fait pas tourner la pièce', () => {
@@ -171,11 +154,11 @@ describe('deux pouces', () => {
     const { s, actions } = setup();
     s.down(1, 100, 500, 0, 'left');
     s.down(2, 300, 500, 5, 'right');
-    s.move(2, 300 + R, 500);
+    s.move(2, 330, 500);
     s.move(1, 100 - R, 500);
     expect(actions).toEqual(['left']);
-    expect(s.paddle()).toBe(1);
-    expect(s.sticks()).toHaveLength(2);
+    expect(s.takePaddle(1)).toBeCloseTo(30 * PADDLE_DRAG_SENSITIVITY);
+    expect(s.sticks()).toHaveLength(1);
   });
 
   it('un deuxième doigt du même côté est ignoré', () => {
@@ -192,11 +175,11 @@ describe('deux pouces', () => {
     const { s, actions } = setup();
     s.down(1, 100, 500, 0, 'left');
     s.down(2, 300, 500, 0, 'right');
-    s.move(2, 300 + R, 500);
     s.cancelAll();
+    s.move(2, 340, 500);
     s.up(1, 100, 500, 50);
     expect(actions).toEqual([]);
-    expect(s.paddle()).toBe(0);
+    expect(s.takePaddle(1)).toBe(0);
     expect(s.sticks()).toHaveLength(0);
   });
 });
