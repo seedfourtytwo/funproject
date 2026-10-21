@@ -1,0 +1,20 @@
+/* La page ne bouge jamais : pas de scroll, pas de zoom, pas de sélection. */
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #02030a;
+  overscroll-behavior: none;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+canvas {
+  position: absolute;
+  display: block;
+  touch-action: none;
+}
