@@ -220,3 +220,9 @@ function frame(now) {
 }
 
 requestAnimationFrame(frame);
+
+// Hors ligne et installable : seulement dans la version publiée, pas pendant
+// le développement (sinon on garderait de vieilles copies en travaillant).
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js');
+}
