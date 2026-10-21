@@ -3,12 +3,25 @@ import { STEP } from './config.js';
 import { createScreen, drawFrame } from './render.js';
 import { createInput } from './input.js';
 import { createBreakout, movePaddle, stepBall } from './breakout.js';
+import { createTetris, stepTetris, tryMove, tryRotate, hardDrop } from './tetris.js';
 
 const screen = createScreen(document.getElementById('game'));
 const input = createInput(screen);
-const game = { breakout: createBreakout() };
+const game = { breakout: createBreakout(), tetris: createTetris() };
+
+const PIECE_ACTIONS = {
+  left: (t) => tryMove(t, -1),
+  right: (t) => tryMove(t, 1),
+  rotate: (t) => tryRotate(t, 1),
+  rotateLeft: (t) => tryRotate(t, -1),
+  drop: (t) => hardDrop(t),
+};
 
 function update(dt) {
+  for (const a of input.takeActions()) PIECE_ACTIONS[a]?.(game.tetris);
+  stepTetris(game.tetris, dt);
+  if (game.tetris.over) game.tetris = createTetris();
+
   movePaddle(game.breakout, input.takePaddle() + input.keyPaddle(dt));
   stepBall(game.breakout, dt);
 }

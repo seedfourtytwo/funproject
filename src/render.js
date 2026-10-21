@@ -1,4 +1,10 @@
-import { VIEW_W, VIEW_H, FIELD_X, FIELD_W, GRID_TOP, GRID_BOTTOM } from './config.js';
+import {
+  VIEW_W, VIEW_H, FIELD_X, FIELD_W, GRID_TOP, GRID_BOTTOM, CELL, COLS, ROWS,
+} from './config.js';
+import { pieceCells, shapeCells, colorOf } from './tetris.js';
+
+// Une couleur par pièce, dans l'ordre I O T S Z J L (indice 0 = case vide).
+const COLORS = [null, '#3ef', '#fd3', '#c5f', '#5f6', '#f45', '#48f', '#f93'];
 
 // Adapte le canvas à l'écran : on garde le format 360 × 640, on l'agrandit
 // au maximum sans le déformer (bandes noires sur les côtés si besoin, c'est
@@ -45,7 +51,36 @@ export function drawFrame(ctx, game) {
   ctx.fillStyle = '#1b2555';
   ctx.fillRect(FIELD_X, GRID_BOTTOM, FIELD_W, 1);
 
+  drawTetris(ctx, game.tetris);
   drawBreakout(ctx, game.breakout);
+}
+
+function drawCell(ctx, x, y, size, color) {
+  ctx.fillStyle = color;
+  ctx.fillRect(x + 1, y + 1, size - 2, size - 2);
+}
+
+function drawTetris(ctx, t) {
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const v = t.board[r][c];
+      if (v) drawCell(ctx, FIELD_X + c * CELL, GRID_TOP + r * CELL, CELL, COLORS[v]);
+    }
+  }
+  if (!t.over) {
+    const color = COLORS[colorOf(t.piece.type)];
+    ctx.globalAlpha = 0.85;
+    for (const [c, r] of pieceCells(t.piece)) {
+      drawCell(ctx, FIELD_X + c * CELL, GRID_TOP + r * CELL, CELL, color);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // Aperçu de la pièce suivante, en haut à droite.
+  const size = 9;
+  for (const [c, r] of shapeCells(t.next)) {
+    drawCell(ctx, VIEW_W - 58 + c * size, 14 + r * size, size, COLORS[colorOf(t.next)]);
+  }
 }
 
 function drawBreakout(ctx, { paddle, ball }) {
