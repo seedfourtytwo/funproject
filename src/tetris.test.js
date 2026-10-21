@@ -1,12 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import {
   createTetris, stepTetris, tryMove, tryRotate, hardDrop, pieceCells, colorOf, TYPES,
+  solidAt, breakPieceCell, solidsOf,
 } from './tetris.js';
 import { COLS, ROWS } from './config.js';
 
 // Remplace la pièce active par une pièce choisie, pour des tests prévisibles.
 function place(t, type, col, row, rot = 0) {
-  t.piece = { type, col, row, rot };
+  t.piece = { type, col, row, rot, gone: [] };
 }
 const rowsOf = (t) => pieceCells(t.piece).map(([, r]) => r);
 const colsOf = (t) => pieceCells(t.piece).map(([c]) => c);
@@ -178,5 +179,64 @@ describe('fin de partie', () => {
     const before = JSON.stringify(t.piece);
     stepTetris(t, 10);
     expect(JSON.stringify(t.piece)).toBe(before);
+  });
+});
+
+describe('casser la pièce qui bouge', () => {
+  it('la balle voit les cases de la pièce active', () => {
+    const t = createTetris();
+    place(t, 'O', 4, 6);
+    expect(solidAt(t, 4, 6)).toBe(colorOf('O'));
+    expect(solidAt(t, 3, 6)).toBe(0);
+    t.board[2][2] = 5;
+    expect(solidAt(t, 2, 2)).toBe(5);
+  });
+
+  it('une case cassée disparaît de la pièce, qui continue avec les autres', () => {
+    const t = createTetris();
+    place(t, 'O', 4, 6);
+    const hit = breakPieceCell(t, 5, 7);
+    expect(hit).toEqual({ color: colorOf('O'), pieceGone: false });
+    expect(pieceCells(t.piece)).toHaveLength(3);
+    hardDrop(t);
+    expect(t.board[0][4] + t.board[0][5] + t.board[1][4] + t.board[1][5]).toBe(3 * colorOf('O'));
+  });
+
+  it('la case cassée le reste après une rotation', () => {
+    const t = createTetris();
+    place(t, 'T', 4, 6);
+    breakPieceCell(t, 4, 7);
+    tryRotate(t, 1);
+    expect(pieceCells(t.piece)).toHaveLength(3);
+  });
+
+  it('les 4 cases cassées : la pièce est détruite et la suivante apparaît', () => {
+    const t = createTetris();
+    place(t, 'O', 4, 6);
+    t.next = 'I';
+    breakPieceCell(t, 4, 6);
+    breakPieceCell(t, 5, 6);
+    breakPieceCell(t, 4, 7);
+    const hit = breakPieceCell(t, 5, 7);
+    expect(hit.pieceGone).toBe(true);
+    expect(t.piece.type).toBe('I');
+    expect(t.board.flat().every((v) => v === 0)).toBe(true);
+  });
+
+  it('casser là où la pièce n’est pas ne fait rien', () => {
+    const t = createTetris();
+    place(t, 'O', 4, 6);
+    expect(breakPieceCell(t, 0, 0)).toBeNull();
+    expect(pieceCells(t.piece)).toHaveLength(4);
+  });
+
+  it('solids() : casse une case du tas ou de la pièce, au choix de ce qui est là', () => {
+    const t = createTetris();
+    place(t, 'O', 4, 6);
+    t.board[0][0] = 3;
+    const solids = solidsOf(t);
+    expect(solids.clear(0, 0)).toEqual({ color: 3, fromPiece: false, pieceGone: false });
+    expect(t.board[0][0]).toBe(0);
+    expect(solids.clear(4, 6)).toEqual({ color: colorOf('O'), fromPiece: true, pieceGone: false });
   });
 });

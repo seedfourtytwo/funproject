@@ -32,9 +32,12 @@ const KICKS = [[0, 0], [-1, 0], [1, 0], [0, -1], [0, 1], [-2, 0], [2, 0]];
 
 export const colorOf = (type) => TYPES.indexOf(type) + 1;
 
-// Les cases de la pièce, en coordonnées de la grille.
-export function pieceCells({ type, rot, col, row }) {
-  return ROTATIONS[type][rot].map(([c, r]) => [col + c, row + r]);
+// Les cases de la pièce, en coordonnées de la grille. « gone » liste les cases
+// que la balle a déjà cassées (par leur numéro, qui ne change pas en tournant).
+export function pieceCells({ type, rot, col, row, gone }) {
+  return ROTATIONS[type][rot]
+    .filter((_, i) => !gone.includes(i))
+    .map(([c, r]) => [col + c, row + r]);
 }
 
 export const shapeCells = (type) => ROTATIONS[type][0];
@@ -68,7 +71,7 @@ function spawn(t) {
   t.next = draw(t);
   const { n } = SHAPES[type];
   const lowest = Math.max(...ROTATIONS[type][0].map(([, r]) => r));
-  t.piece = { type, rot: 0, col: Math.floor((COLS - n) / 2), row: ROWS - 1 - lowest };
+  t.piece = { type, rot: 0, col: Math.floor((COLS - n) / 2), row: ROWS - 1 - lowest, gone: [] };
   t.timer = 0;
   if (!fits(t.board, t.piece)) t.over = true;
 }
@@ -148,4 +151,44 @@ export function stepTetris(t, dt) {
     if (!tryMove(t, 0, -1)) return lock(t);
   }
   return [];
+}
+
+// Ce qu'il y a dans une case, pour la balle : une case du tas, une case de
+// la pièce qui bouge, ou 0 (vide).
+export function solidAt(t, c, r) {
+  if (t.board[r][c]) return t.board[r][c];
+  if (!t.over && pieceCells(t.piece).some(([pc, pr]) => pc === c && pr === r)) return colorOf(t.piece.type);
+  return 0;
+}
+
+// La balle casse une case de la pièce qui bouge. Si c'était la dernière,
+// la pièce est détruite et la suivante apparaît. Renvoie null si la pièce
+// n'occupe pas cette case.
+export function breakPieceCell(t, c, r) {
+  const { piece } = t;
+  const index = ROTATIONS[piece.type][piece.rot].findIndex(
+    ([pc, pr], i) => !piece.gone.includes(i) && piece.col + pc === c && piece.row + pr === r,
+  );
+  if (index < 0) return null;
+  t.piece = { ...piece, gone: [...piece.gone, index] };
+  const pieceGone = t.piece.gone.length === ROTATIONS[piece.type][piece.rot].length;
+  if (pieceGone) spawn(t);
+  return { color: colorOf(piece.type), pieceGone };
+}
+
+// Ce que la balle peut toucher et casser, sans qu'elle ait à savoir ce
+// qu'est un Tetris : get dit ce qu'il y a dans une case, clear la casse.
+export function solidsOf(t) {
+  return {
+    get: (c, r) => solidAt(t, c, r),
+    clear(c, r) {
+      const color = t.board[r][c];
+      if (color) {
+        t.board[r][c] = 0;
+        return { color, fromPiece: false, pieceGone: false };
+      }
+      const hit = breakPieceCell(t, c, r);
+      return hit && { ...hit, fromPiece: true };
+    },
+  };
 }

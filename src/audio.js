@@ -61,7 +61,15 @@ const arpeggio = (notes, step, opts) => notes.forEach((f, i) => tone(f, { ...opt
 const SOUNDS = {
   paddle: () => tone(330, { dur: 0.08, to: 660, vol: 0.25 }),
   wall: () => tone(220, { dur: 0.04, type: 'triangle', vol: 0.2 }),
-  cell: () => { crunch(); tone(180, { dur: 0.06, vol: 0.15, to: 90 }); },
+  // Plus le combo est long, plus le son monte.
+  cell: (combo = 0) => {
+    crunch();
+    tone(180 * 1.06 ** Math.min(combo, 24), { dur: 0.06, vol: 0.15, to: 90 });
+  },
+  combo: () => arpeggio([880, 1320], 0.06, { dur: 0.08, vol: 0.2 }),
+  smash: () => { crunch(0.45, 0.25); tone(110, { dur: 0.3, vol: 0.35, to: 40 }); },
+  pop: () => tone(500, { dur: 0.08, type: 'triangle', vol: 0.25, to: 1000 }),
+  powerup: () => arpeggio([523, 784, 1047, 1568, 2093], 0.05, { dur: 0.1, type: 'triangle', vol: 0.3 }),
   move: () => tone(880, { dur: 0.02, vol: 0.08 }),
   rotate: () => tone(1175, { dur: 0.03, vol: 0.1 }),
   lock: () => tone(110, { dur: 0.1, type: 'triangle', vol: 0.4, to: 70 }),
@@ -74,7 +82,7 @@ const SOUNDS = {
   start: () => arpeggio([392, 523, 659, 784], 0.08, { dur: 0.12, vol: 0.22 }),
 };
 
-export function play(name) {
+export function play(name, arg) {
   if (!ctx || ctx.state !== 'running') return;
-  SOUNDS[name]?.();
+  SOUNDS[name]?.(arg);
 }

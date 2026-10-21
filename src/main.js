@@ -1,11 +1,16 @@
 import './style.css';
 import '@fontsource/press-start-2p/latin-400.css'; // police pixel, servie avec le jeu (marche hors ligne)
-import { STEP, FIELD_X, GRID_TOP, CELL, VIEW_W } from './config.js';
+import { STEP, FIELD_X, GRID_TOP, CELL, VIEW_W, MAX_LIVES } from './config.js';
 import { createScreen, drawFrame } from './render.js';
 import { createInput } from './input.js';
-import { createBreakout, movePaddle, stepBall, setSpeed } from './breakout.js';
-import { createTetris, stepTetris, tryMove, tryRotate, hardDrop } from './tetris.js';
-import { levelFor, riseInterval, ballSpeed, lineScore, CELL_POINTS, DROP_POINTS } from './rules.js';
+import {
+  createBreakout, movePaddle, stepBall, setSpeed, applyPowerUp, dropItem,
+} from './breakout.js';
+import { createTetris, stepTetris, tryMove, tryRotate, hardDrop, solidsOf } from './tetris.js';
+import {
+  levelFor, riseInterval, ballSpeed, lineScore, comboMultiplier, itemFor,
+  CELL_POINTS, DROP_POINTS, PIECE_CELL_POINTS, PIECE_BREAK_BONUS,
+} from './rules.js';
 import { createFx, stepFx, burst, sparkle, floatText, shake, flash, vibrate } from './fx.js';
 import { unlockAudio, play } from './audio.js';
 
@@ -40,6 +45,7 @@ function newGame(state) {
     state, score: 0, level: 1, lives: LIVES, best: loadBest(), newBest: false,
     tetris: createTetris(), breakout: createBreakout(),
     fx: createFx(), trail: [], time: 0, overFor: 0,
+    combo: 0, // cases cassées depuis le dernier rebond sur la planche
   };
 }
 
@@ -94,12 +100,42 @@ function handle(events) {
         play(e.count >= 2 ? 'bigLine' : 'line');
         break;
       }
-      case 'cell':
-        addScore(CELL_POINTS);
+      case 'cell': {
+        const before = comboMultiplier(game.combo);
+        game.combo++;
+        const multiplier = comboMultiplier(game.combo);
+        addScore((e.fromPiece ? PIECE_CELL_POINTS : CELL_POINTS) * multiplier);
         burst(fx, e.x, e.y, e.color);
-        play('cell');
+        play('cell', game.combo);
+        if (multiplier > before) {
+          floatText(fx, e.x, e.y - 14, `COMBO x${multiplier}`, '#3cbcfc');
+          play('combo');
+        }
+        if (e.pieceGone) {
+          addScore(PIECE_BREAK_BONUS * multiplier);
+          floatText(fx, e.x, e.y + 14, `BOUM +${PIECE_BREAK_BONUS * multiplier}`, '#f88800');
+          shake(fx, 7);
+          flash(fx, 0.2);
+          vibrate(30);
+          play('smash');
+        }
+        const item = itemFor(Math.random, game.lives);
+        if (item) {
+          dropItem(game.breakout, item, e.x, e.y);
+          play('pop');
+        }
+        break;
+      }
+      case 'item':
+        if (e.kind === 'heart') game.lives = Math.min(MAX_LIVES, game.lives + 1);
+        else applyPowerUp(game.breakout, e.kind);
+        floatText(fx, e.x, e.y - 20, ITEM_LABELS[e.kind], '#f8d800');
+        sparkle(fx, e.x, e.y, 12);
+        vibrate(20);
+        play('powerup');
         break;
       case 'paddle':
+        game.combo = 0;
         sparkle(fx, e.x, e.y, 5);
         vibrate(12);
         play('paddle');
@@ -109,6 +145,7 @@ function handle(events) {
         break;
       case 'lost':
         game.lives--;
+        game.combo = 0;
         game.trail = [];
         shake(fx, 6);
         vibrate([60, 40, 60]);
@@ -121,6 +158,8 @@ function handle(events) {
     }
   }
 }
+
+const ITEM_LABELS = { heart: '+1 VIE', mushroom: 'PLANCHE XL', star: 'ETOILE !' };
 
 const PIECE_ACTIONS = {
   left: (t) => tryMove(t, -1) && play('move'),
@@ -179,7 +218,9 @@ function update(dt) {
 
   movePaddle(game.breakout, paddleDx);
   handle(stepTetris(game.tetris, dt));
-  handle(stepBall(game.breakout, dt, game.tetris.board));
+  handle(stepBall(game.breakout, dt, solidsOf(game.tetris)));
+  // Casser toute la pièce fait apparaître la suivante : elle peut ne plus avoir la place.
+  if (game.tetris.over) endGame();
 
   const ball = game.breakout.ball;
   if (!ball.stuck) {

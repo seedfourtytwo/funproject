@@ -11,8 +11,14 @@ En ligne : https://brick-tetris.christopher-k.workers.dev
 - **En haut** : glisse à gauche ou à droite pour bouger la pièce, touche pour la
   tourner, glisse vers le haut pour la lancer jusqu'au plafond.
 - **En bas** : glisse pour bouger la planche. Elle suit ton doigt sans sauter.
-- Perdu quand le tas descend jusqu'en bas de la grille, ou après trois fées
-  tombées dans l'herbe.
+- La fée casse les briques du tas et celles de la pièce qui bouge (plus de
+  points). Casse les quatre cases d'une pièce avant qu'elle se colle : bonus.
+- Combo : chaque série de 3 briques cassées sans que la fée touche la planche
+  multiplie les points, jusqu'à ×5.
+- Des bonus tombent parfois des briques : cœur (une vie, jusqu'à 5),
+  champignon (planche plus large 12 s), étoile (la fée traverse tout 6 s).
+- Perdu quand le tas descend jusqu'en bas de la grille, ou quand toutes les
+  fées sont tombées dans l'herbe.
 - Au clavier (pour tester sur PC) : flèches gauche / droite, flèche haut pour
   lancer, Z / X pour tourner, A / D pour la planche, P pour la pause.
 

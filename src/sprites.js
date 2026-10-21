@@ -3,7 +3,8 @@
 // pixels d'art (plus sur un écran allongé). On dessine en petit, puis on agrandit sans lissage : c'est ce
 // qui donne l'aspect net des vieilles consoles.
 import {
-  VIEW_W, VIEW_H, FIELD_X, FIELD_W, GRID_TOP, GRID_BOTTOM, CELL, COLS, ROWS, PADDLE_W, PADDLE_H,
+  VIEW_W, VIEW_H, FIELD_X, FIELD_W, GRID_TOP, GRID_BOTTOM, CELL, COLS, ROWS,
+  PADDLE_W, BIG_PADDLE_W, PADDLE_H,
 } from './config.js';
 
 export const ART = 2; // pixels logiques par pixel d'art
@@ -114,6 +115,28 @@ const FAIRY = [
   ],
 ];
 
+// Les bonus qui tombent des briques cassées.
+const MUSHROOM = [
+  '..RRRR..',
+  '.RWWRRR.',
+  'RWWRRWWR',
+  'RRRRRWWR',
+  'RRRRRRRR',
+  '.KSSSSK.',
+  '..SSSS..',
+  '..SSSS..',
+];
+const STAR = [
+  '...YY...',
+  '...YY...',
+  'YYYYYYYY',
+  '.YYWYYY.',
+  '..YYYY..',
+  '.YYYYYY.',
+  '.YY..YY.',
+  'YY....YY',
+];
+
 // Torche murale, deux flammes qui alternent.
 const TORCH = [
   [
@@ -141,9 +164,9 @@ const TORCH = [
 ];
 const TORCH_COLORS = { Y: '#fcf8a8', O: '#fc9838', R: '#d82800', G: '#f8d800', B: '#6c3c14' };
 
-// La raquette : une planche de bois cerclée d'or.
-function makePaddle() {
-  const w = PADDLE_W / ART; // 28
+// La raquette : une planche de bois cerclée d'or. width en pixels logiques.
+function makePaddle(width) {
+  const w = width / ART;
   const h = PADDLE_H / ART; // 5
   const [canvas, ctx] = makeCanvas(w, h);
   const rect = (x, y, rw, rh, c) => { ctx.fillStyle = c; ctx.fillRect(x, y, rw, rh); };
@@ -151,7 +174,7 @@ function makePaddle() {
   rect(0, 1, w, h - 2, '#3c1c00');
   rect(1, 1, w - 2, h - 2, '#a85c1c');
   rect(2, 1, w - 4, 1, '#e0903c');
-  for (const x of [5, 11, 17, 23]) rect(x, 3, 2, 1, '#7c3c0c');
+  for (let x = 6; x < w - 6; x += 6) rect(x, 3, 2, 1, '#7c3c0c');
   for (const x of [3, w - 5]) {
     rect(x, 0, 2, h, '#a88800');
     rect(x, 1, 1, h - 2, '#f8d800');
@@ -233,19 +256,32 @@ export function createSprites() {
   const fairy = FAIRY.map((p) => fromPattern(p, { B: '#a8e4fc', W: '#fcfcfc' }));
   const torch = TORCH.map((p) => fromPattern(p, TORCH_COLORS));
 
-  // Halo lumineux de la fée (le seul dégradé du jeu, calculé une fois).
-  const [glow, g] = makeCanvas(48, 48);
-  const grad = g.createRadialGradient(24, 24, 0, 24, 24, 24);
-  grad.addColorStop(0, 'rgba(255, 220, 255, 0.9)');
-  grad.addColorStop(0.3, 'rgba(255, 140, 230, 0.35)');
-  grad.addColorStop(1, 'rgba(255, 140, 230, 0)');
-  g.fillStyle = grad;
-  g.fillRect(0, 0, 48, 48);
+  // Halo lumineux de la fée : rose d'habitude, doré avec l'étoile.
+  // Les seuls dégradés du jeu, calculés une fois.
+  const makeGlow = (core, mid) => {
+    const [glow, g] = makeCanvas(48, 48);
+    const grad = g.createRadialGradient(24, 24, 0, 24, 24, 24);
+    grad.addColorStop(0, core);
+    grad.addColorStop(0.3, mid);
+    grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 48, 48);
+    return glow;
+  };
+  const glow = makeGlow('rgba(255, 220, 255, 0.9)', 'rgba(255, 140, 230, 0.35)');
+  const starGlow = makeGlow('rgba(255, 250, 200, 1)', 'rgba(255, 210, 0, 0.5)');
+
+  const items = {
+    heart: hearts.full,
+    mushroom: fromPattern(MUSHROOM, { R: '#e40048', W: '#fcfcfc', K: '#3c1c00', S: '#fce0a8' }),
+    star: fromPattern(STAR, { Y: '#f8d800', W: '#fcfcfc' }),
+  };
 
   return {
     background: makeBackground(),
     bricks: BRICK_COLORS.map((c) => (c ? makeBrick(c) : null)),
-    paddle: makePaddle(),
-    hearts, coin, fairy, torch, glow,
+    paddle: makePaddle(PADDLE_W),
+    bigPaddle: makePaddle(BIG_PADDLE_W),
+    hearts, coin, fairy, torch, glow, starGlow, items,
   };
 }

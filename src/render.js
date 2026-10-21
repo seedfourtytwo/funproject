@@ -1,5 +1,5 @@
 import {
-  VIEW_W, VIEW_H, FIELD_X, GRID_TOP, CELL, COLS, ROWS, PAUSE_BUTTON,
+  VIEW_W, VIEW_H, FIELD_X, GRID_TOP, CELL, COLS, ROWS, PAUSE_BUTTON, ITEM_SIZE, BIG_PADDLE_W,
 } from './config.js';
 import { pieceCells, shapeCells, colorOf } from './tetris.js';
 import { createSprites, BRICK_COLORS, ART } from './sprites.js';
@@ -59,8 +59,9 @@ export function drawFrame(screen, game) {
   drawTorches(ctx, game.time);
   drawBoard(ctx, game.tetris);
   if (game.state !== 'menu' && !game.tetris.over) drawPiece(ctx, game.tetris.piece, game.time);
-  drawPaddle(ctx, game.breakout.paddle);
-  if (game.state !== 'menu') drawFairy(ctx, game.breakout.ball, game.trail, game.time);
+  drawItems(ctx, game.breakout.items, game.time);
+  drawPaddle(ctx, game.breakout, game.time);
+  if (game.state !== 'menu') drawFairy(ctx, game.breakout, game.trail, game.time);
   drawParticles(ctx, fx);
   ctx.restore();
 
@@ -97,31 +98,53 @@ function drawBoard(ctx, t) {
   }
 }
 
-// La pièce active est un peu transparente et « respire » : la fée la traverse.
+// La pièce active « respire » un peu, pour la distinguer du tas.
 function drawPiece(ctx, piece, time) {
   const brick = sprites.bricks[colorOf(piece.type)];
-  ctx.globalAlpha = 0.7 + 0.15 * Math.sin(time * 6);
+  ctx.globalAlpha = 0.85 + 0.15 * Math.sin(time * 6);
   for (const [c, r] of pieceCells(piece)) ctx.drawImage(brick, cellX(c), cellY(r), CELL, CELL);
   ctx.globalAlpha = 1;
 }
 
-function drawPaddle(ctx, p) {
-  ctx.drawImage(sprites.paddle, p.x - p.w / 2, p.y, p.w, p.h);
+// Un bonus qui clignote vite = il va bientôt s'arrêter.
+const ending = (left, time) => left > 0 && left < 2 && Math.floor(time * 8) % 2 === 0;
+
+function drawPaddle(ctx, { paddle: p, big }, time) {
+  const sprite = p.w === BIG_PADDLE_W ? sprites.bigPaddle : sprites.paddle;
+  if (ending(big, time)) ctx.globalAlpha = 0.4;
+  ctx.drawImage(sprite, p.x - p.w / 2, p.y, p.w, p.h);
+  ctx.globalAlpha = 1;
 }
 
-function drawFairy(ctx, ball, trail, time) {
-  // Traînée : des étincelles de plus en plus petites et pâles.
+function drawItems(ctx, items, time) {
+  for (const item of items) {
+    const bob = Math.round(Math.sin(time * 8 + item.x) * 2);
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = 0.6;
+    ctx.drawImage(sprites.starGlow, item.x - 24, item.y - 24);
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+    const half = ITEM_SIZE / 2;
+    ctx.drawImage(sprites.items[item.kind], item.x - half, item.y - half + bob, ITEM_SIZE, ITEM_SIZE);
+  }
+}
+
+const RAINBOW = ['#e40048', '#f88800', '#f8d800', '#58d854', '#3cbcfc', '#d03ce8'];
+
+function drawFairy(ctx, { ball, star }, trail, time) {
+  // Traînée : des étincelles de plus en plus petites et pâles. Arc-en-ciel avec l'étoile.
   trail.forEach((pt, i) => {
     const k = (i + 1) / trail.length;
-    const size = Math.max(2, Math.round(k * 4));
+    const size = Math.max(2, Math.round(k * (star ? 7 : 4)));
     ctx.globalAlpha = k * 0.7;
-    ctx.fillStyle = i % 2 ? '#fcfcfc' : '#fca8e4';
+    ctx.fillStyle = star ? RAINBOW[(i + Math.floor(time * 20)) % RAINBOW.length] : i % 2 ? '#fcfcfc' : '#fca8e4';
     ctx.fillRect(pt.x - size / 2, pt.y - size / 2, size, size);
   });
   ctx.globalAlpha = 1;
 
   ctx.globalCompositeOperation = 'lighter';
-  ctx.drawImage(sprites.glow, ball.x - 24, ball.y - 24);
+  const glow = star && !ending(star, time) ? sprites.starGlow : sprites.glow;
+  ctx.drawImage(glow, ball.x - 24, ball.y - 24);
   ctx.globalCompositeOperation = 'source-over';
 
   const frame = sprites.fairy[Math.floor(time * 12) % 2];
@@ -171,7 +194,7 @@ function drawHud(ctx, game) {
   // Cœurs de vie, en haut à gauche.
   const heartW = sprites.hearts.full.width * ART;
   const heartH = sprites.hearts.full.height * ART;
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < Math.max(3, game.lives); i++) {
     const heart = i < game.lives ? sprites.hearts.full : sprites.hearts.empty;
     ctx.drawImage(heart, 12 + i * (heartW + 4), 10, heartW, heartH);
   }
@@ -245,6 +268,8 @@ function drawMenu(ctx, game) {
     'touche pour la tourner,',
     'glisse vers le haut pour la lancer.',
     'En bas : glisse pour bouger la planche.',
+    'La fée casse tout, même la pièce qui bouge.',
+    'Attrape les bonus qui tombent !',
   ];
   help.forEach((line, i) => ctx.fillText(line, cx, 440 + i * 20));
 }

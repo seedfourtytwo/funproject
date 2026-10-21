@@ -31,6 +31,14 @@ export const BALL_SPEED = 260; // px par seconde au départ
 export const LAUNCH_DELAY = 1; // secondes posée sur la raquette avant de partir
 export const MAX_BOUNCE_ANGLE = Math.PI / 3; // 60° depuis la verticale, au bord de la raquette
 
+// Les bonus qui tombent des briques cassées.
+export const ITEM_SIZE = 16;
+export const ITEM_FALL_SPEED = 110; // px par seconde
+export const BIG_PADDLE_W = 84; // champignon : planche plus large...
+export const BIG_PADDLE_TIME = 12; // ... pendant 12 s
+export const STAR_TIME = 6; // étoile : la fée traverse tout pendant 6 s
+export const MAX_LIVES = 5; // cœur : une vie de plus, jusqu'à 5
+
 // Gestes, en pixels d'écran (ce que le doigt ressent, quelle que soit la taille du téléphone).
 export const MOVE_STEP_PX = 30; // glisser de 30 px = la pièce bouge d'une colonne
 export const SWIPE_UP_PX = 60; // glisser vers le haut de 60 px = chute instantanée
